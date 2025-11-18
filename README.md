@@ -62,17 +62,17 @@ classification report) - Optional model export
 
 ## 6. Evaluation Output
 
-The script prints: - FastAI accuracy\
-- Manual accuracy\
-- Confusion matrix\
+The script prints: - FastAI accuracy
+- Manual accuracy
+- Confusion matrix
 - Classification report
 
 ## 7. Model Architecture
 
--   Conv block (3 → 16)\
--   Triple conv blocks (16→32, 32→64)\
--   Conv (64→128)\
--   MaxPooling\
+-   Conv block (3 → 16)
+-   Triple conv blocks (16→32, 32→64)
+-   Conv (64→128)
+-   MaxPooling
 -   Linear classifier 32768 → 3
 
 ## 8. Example Full Command
