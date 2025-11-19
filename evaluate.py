@@ -7,7 +7,6 @@ import torch.nn as nn
 from sklearn.metrics import confusion_matrix, classification_report
 from fastai.vision.all import Learner, accuracy, load_learner
 
-# Import model & dataloader builders from your training script
 from darkcovidnet_3class import build_darkcovidnet, get_dataloaders
 
 
@@ -65,15 +64,12 @@ def evaluate_learner(learn: Learner):
     dls = learn.dls
     print("Number of validation examples:", len(dls.valid_ds))
 
-    # Get predictions and targets
     probs, targets = learn.get_preds(dl=dls.valid)
     acc = accuracy(probs, targets)
 
-    # Convert accuracy to float for printing
     acc_float = float(acc)
     print(f"fastai accuracy: {acc_float:.4f}")
 
-    # Manual accuracy, confusion matrix, classification report
     preds_np = probs.argmax(dim=1).cpu().numpy()
     targets_np = targets.cpu().numpy()
 
@@ -104,7 +100,6 @@ def main():
 
     print(f"Using data directory: {data_dir.resolve()}")
 
-    # Build dataloaders for evaluation
     dls = get_dataloaders(
         data_dir=data_dir,
         bs=args.bs,
@@ -112,7 +107,6 @@ def main():
     )
 
     if args.model_pkl is not None:
-        # 1) Load FastAI exported learner
         model_path = Path(args.model_pkl)
         if not model_path.exists():
             raise FileNotFoundError(f"model-pkl {model_path} does not exist.")
@@ -120,11 +114,9 @@ def main():
         print(f"Loading FastAI learner from: {model_path.resolve()}")
         learn = load_learner(model_path)
 
-        # Override the dataloaders with current dataset (optional but recommended)
         learn.dls = dls
 
     elif args.model_state is not None:
-        # 2) Load raw PyTorch state_dict into a fresh model
         state_path = Path(args.model_state)
         if not state_path.exists():
             raise FileNotFoundError(f"model-state {state_path} does not exist.")
@@ -137,7 +129,6 @@ def main():
         state_dict = torch.load(state_path, map_location="cpu")
         model.load_state_dict(state_dict)
 
-        # Wrap model in a FastAI Learner for easy evaluation
         learn = Learner(
             dls,
             model,
@@ -148,7 +139,6 @@ def main():
     else:
         raise ValueError("You must provide either --model-pkl or --model-state.")
 
-    # Run evaluation
     evaluate_learner(learn)
 
 

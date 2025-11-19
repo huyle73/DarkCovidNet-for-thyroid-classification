@@ -242,13 +242,11 @@ def main():
 
     evaluate_model(learn)
 
-    # 1) Save FastAI learner (.pkl)
     if args.save_model is not None:
         save_path = Path(args.save_model)
         learn.export(save_path)
         print(f"FastAI learner exported to: {save_path.resolve()}")
 
-    # 2) Save raw PyTorch state_dict (.pth)
     if args.save_torch is not None:
         torch_path = Path(args.save_torch)
         torch.save(learn.model.state_dict(), torch_path)
