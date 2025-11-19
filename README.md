@@ -1,24 +1,29 @@
-# DarkCovidNet 3-Class Classification
 
-Python Implementation (Converted from Jupyter Notebook)
+# DarkCovidNet for Thyroid Cytology Classification (3-class)
 
-This repository contains a Python implementation of **DarkCovidNet**
-adapted for **3-class thyroid cytology image classification** (B4, B5,
-B6).\
-The code is converted from the original FastAI Jupyter notebook into a
-fully runnable `.py` script with a `main()` entry point.
+This repository provides a clean Python implementation of **DarkCovidNet**, adapted
+for **3-class thyroid cytology classification** (B4 / B5 / B6).  
+All training and evaluation previously performed in a Jupyter Notebook
+has been fully rewritten into two standalone Python scripts:
 
-## 1. Requirements
+- `darkcovidnet_3class.py` — Training the model  
+- `evaluate.py` — Evaluating a saved model
 
-Install dependencies:
+Both **FastAI (.pkl)** and **raw PyTorch (.pth)** model formats are supported.
 
-    pip install fastai torch torchvision scikit-learn numpy
+---
 
-## 2. Dataset Structure
+## 1. Project Structure
 
-Your dataset must follow this structure:
-
-    thyroid_dataset_more_classes_full_3class/
+```
+DarkCovidNet-for-thyroid-classification/
+│
+├── darkcovidnet_3class.py          # Training script
+├── evaluate.py                      # Evaluation script
+├── darkcovidnet_3class.pkl         # Saved FastAI model (optional)
+├── darkcovidnet_3class_state.pth   # Saved PyTorch weights (optional)
+│
+└── thyroid_dataset_more_classes_full_3class/
     ├── train/
     │   ├── B4/
     │   ├── B5/
@@ -27,54 +32,128 @@ Your dataset must follow this structure:
         ├── B4/
         ├── B5/
         └── B6/
+```
 
-## 3. Script Description
+Dataset must follow FastAI's **ImageDataLoaders.from_folder** structure.
 
-Main script:
+---
 
-    darkcovidnet_3class.py
+## 2. Training the Model
 
-Includes: - Model (DarkCovidNet) - Data loading with FastAI - Training
-using `fit_one_cycle` - Evaluation (accuracy, confusion matrix,
-classification report) - Optional model export
+Example command:
 
-## 4. How to Run
+```bash
+python darkcovidnet_3class.py   --data-dir "thyroid_dataset_more_classes_full_3class"   --epochs 60   --bs 32   --save-model "darkcovidnet_3class.pkl"   --save-torch "darkcovidnet_3class_state.pth"
+```
 
-### Basic training
+### Arguments
 
-    python darkcovidnet_3class.py --data-dir "/path/to/data"
+| Argument | Description |
+|---------|-------------|
+| `--data-dir` | Path to dataset root folder |
+| `--epochs` | Number of training epochs |
+| `--bs` | Batch size (default: 32) |
+| `--lr` | Learning rate (optional) |
+| `--save-model` | Save FastAI Learner (.pkl) |
+| `--save-torch` | Save PyTorch weights (.pth) |
 
-### Custom epochs
-
-    python darkcovidnet_3class.py --epochs 100
-
-### Set learning rate
-
-    python darkcovidnet_3class.py --lr 1e-3
-
-### Change batch size
-
-    python darkcovidnet_3class.py --bs 16
-
-## 5. Saving the Model
-
-    python darkcovidnet_3class.py --save-model "darkcovidnet.pkl"
-
-## 6. Evaluation Output
-
-The script prints: - FastAI accuracy
-- Manual accuracy
+The script prints:
+- Class list (B4/B5/B6)
+- Model summary
+- Training & validation accuracy
 - Confusion matrix
 - Classification report
 
-## 7. Model Architecture
+---
 
--   Conv block (3 → 16)
--   Triple conv blocks (16→32, 32→64)
--   Conv (64→128)
--   MaxPooling
--   Linear classifier 32768 → 3
+## 3. DarkCovidNet Architecture (Modified)
 
-## 8. Example Full Command
+The implementation includes:
 
-    python darkcovidnet_3class.py   --data-dir "/path/to/data"   --epochs 60   --bs 32   --lr 1e-3   --save-model "darkcovidnet.pkl"
+- `conv_block` + LeakyReLU
+- `triple_conv` module
+- MaxPooling downsampling
+- **AdaptiveAvgPool2d(1)** to replace the large flatten layer  
+- Dropout 0.3
+- Final fully connected layer → 3 classes
+
+This improves generalization and reduces overfitting compared to the original DarkCovidNet design.
+
+---
+
+## 4. Evaluating a Saved Model
+
+Run evaluation with PyTorch `.pth` weights:
+
+```bash
+python evaluate.py   --data-dir "thyroid_dataset_more_classes_full_3class"   --bs 32   --model-state "darkcovidnet_3class_state.pth"
+```
+
+Or evaluate FastAI exported `.pkl` model:
+
+```bash
+python evaluate.py   --data-dir "thyroid_dataset_more_classes_full_3class"   --bs 32   --model-pkl "darkcovidnet_3class.pkl"
+```
+
+Evaluation outputs include:
+
+- Validation accuracy
+- Manual accuracy check
+- Confusion matrix
+- Precision / recall / F1-score
+
+---
+
+## 5. Saving Models
+
+### Save FastAI learner
+
+```python
+learn.export("darkcovidnet_3class.pkl")
+```
+
+### Save PyTorch model weights
+
+```python
+torch.save(learn.model.state_dict(), "darkcovidnet_3class_state.pth")
+```
+
+### Load PyTorch model manually
+
+```python
+model = build_darkcovidnet(num_classes=3)
+state = torch.load("darkcovidnet_3class_state.pth", map_location="cpu")
+model.load_state_dict(state)
+model.eval()
+```
+
+---
+
+## 6. Installation
+
+Recommended environment:
+
+```bash
+conda create -n darkcovid python=3.8
+conda activate darkcovid
+pip install fastai torch torchvision scikit-learn numpy
+```
+
+---
+
+## 7. Tips for Better Performance
+
+- Use a stronger optimizer: **AdamW**, **RAdam**, **Ranger**
+- Tune weight decay: `wd=0.01`
+- Increase regularization (dropout, batchnorm)
+- Replace backbone with EfficientNet-B0 or ResNet-18 for much higher accuracy
+- Train longer with early stopping
+
+---
+
+## 8. Author
+
+Prepared and converted by **Huy Lê**, using FastAI & PyTorch.
+
+---
+

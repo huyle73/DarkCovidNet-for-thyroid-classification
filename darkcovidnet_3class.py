@@ -2,7 +2,7 @@ import argparse
 from pathlib import Path
 from sklearn.metrics import confusion_matrix, classification_report
 
-
+from typing import Optional
 from fastai.vision.all import *
 import numpy as np
 import torch
@@ -38,23 +38,42 @@ def maxpooling():
     return nn.MaxPool2d(2, stride=2)
 
 
-def build_darkcovidnet(num_classes: int = 3) -> nn.Module:
+# def build_darkcovidnet(num_classes: int = 3) -> nn.Module:
 
+#     model = nn.Sequential(
+#         conv_block(3, 16),       # Output: 256x256x16 
+#         maxpooling(),            # 128x128x16
+#         triple_conv(16, 32),     # 128x128x32
+#         maxpooling(),            # 64x64x32
+#         triple_conv(32, 64),     # 64x64x64
+#         maxpooling(),            # 32x32x64
+#         conv_block(64, 128),     # 32x32x128
+#         maxpooling(),            # 16x16x128
+#         nn.Flatten(),            # 16*16*128 = 32768
+#         nn.Linear(16 * 16 * 128, num_classes)
+#         # nn.AdaptiveAvgPool2d(1),
+#         # nn.Flatten(),
+#         # nn.Dropout(0.3),
+#         # nn.Linear(128, num_classes)
+#     )
+#     return model
+
+def build_darkcovidnet(num_classes: int = 3) -> nn.Module:
     model = nn.Sequential(
-        conv_block(3, 16),       # Output: 256x256x16 
-        maxpooling(),            # 128x128x16
-        triple_conv(16, 32),     # 128x128x32
-        maxpooling(),            # 64x64x32
-        triple_conv(32, 64),     # 64x64x64
-        maxpooling(),            # 32x32x64
-        conv_block(64, 128),     # 32x32x128
-        maxpooling(),            # 16x16x128
-        nn.Flatten(),            # 16*16*128 = 32768
-        nn.Linear(16 * 16 * 128, num_classes)
+        conv_block(3, 16),
+        maxpooling(),
+        triple_conv(16, 32),
+        maxpooling(),
+        triple_conv(32, 64),
+        maxpooling(),
+        conv_block(64, 128),
+        maxpooling(),              # (B, 128, 16, 16)
+        nn.AdaptiveAvgPool2d(1),   # (B, 128, 1, 1)
+        nn.Flatten(),              # (B, 128)
+        nn.Dropout(0.3),
+        nn.Linear(128, num_classes)
     )
     return model
-
-
 
 def get_dataloaders(
     data_dir: Path,
@@ -67,8 +86,6 @@ def get_dataloaders(
         train='train',
         valid='valid',
         shuffle=True,
-        # Uncomment if you want to force resize to 256x256:
-        # item_tfms=Resize(256),
         batch_tfms=[Normalize.from_stats(*imagenet_stats)],
         bs=bs,
         num_workers=num_workers
@@ -80,7 +97,7 @@ def get_dataloaders(
 def train_model(
     dls: ImageDataLoaders,
     epochs: int = 60,
-    lr: float | None = None
+    lr: Optional[float] = None
 ) -> Learner:
 
     num_classes = len(dls.vocab)
@@ -102,22 +119,24 @@ def train_model(
     print(learn.summary())
 
     if lr is not None:
-        learn.fit_one_cycle(epochs, lr)
+        learn.fit_one_cycle(epochs, lr, wd=3e-3)
     else:
-        learn.fit_one_cycle(epochs)
+        learn.fit_one_cycle(epochs, wd=3e-3)
 
     return learn
 
 
 def evaluate_model(learn: Learner):
 
-
     dls = learn.dls
     print("Number of validation examples:", len(dls.valid_ds))
 
     probs, targets = learn.get_preds(dl=dls.valid)
     acc = accuracy(probs, targets)
-    print(f"fastai accuracy: {acc:.4f}")
+
+    # Cast to float or .item()
+    acc_float = float(acc)
+    print(f"fastai accuracy: {acc_float:.4f}")
 
     preds_np = probs.argmax(dim=1).cpu().numpy()
     targets_np = targets.cpu().numpy()
@@ -180,10 +199,20 @@ def parse_args():
         type=str,
         default=None,
         help=(
-            "Optional: path to save the trained model as a .pkl file. "
+            "Optional: path to save the FastAI trained model as a .pkl file. "
             "Example: --save-model darkcovidnet_3class.pkl"
         ),
     )
+    
+    parser.add_argument(
+    "--save-torch",
+    type=str,
+    default=None,
+    help=(
+        "Optional: path to save raw PyTorch state_dict. "
+        "Example: --save-torch darkcovidnet_3class_state.pth"
+    ),
+)
     return parser.parse_args()
 
 
@@ -213,10 +242,17 @@ def main():
 
     evaluate_model(learn)
 
+    # 1) Save FastAI learner (.pkl)
     if args.save_model is not None:
         save_path = Path(args.save_model)
         learn.export(save_path)
-        print(f"Model exported to: {save_path.resolve()}")
+        print(f"FastAI learner exported to: {save_path.resolve()}")
+
+    # 2) Save raw PyTorch state_dict (.pth)
+    if args.save_torch is not None:
+        torch_path = Path(args.save_torch)
+        torch.save(learn.model.state_dict(), torch_path)
+        print(f"PyTorch state_dict saved to: {torch_path.resolve()}")
 
 
 if __name__ == "__main__":
