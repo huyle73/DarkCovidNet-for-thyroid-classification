@@ -134,26 +134,8 @@ model.eval()
 Recommended environment:
 
 ```bash
-conda create -n darkcovid python=3.8
-conda activate darkcovid
 pip install fastai torch torchvision scikit-learn numpy
 ```
-
----
-
-## 7. Tips for Better Performance
-
-- Use a stronger optimizer: **AdamW**, **RAdam**, **Ranger**
-- Tune weight decay: `wd=0.01`
-- Increase regularization (dropout, batchnorm)
-- Replace backbone with EfficientNet-B0 or ResNet-18 for much higher accuracy
-- Train longer with early stopping
-
----
-
-## 8. Author
-
-Prepared and converted by **Huy Lê**, using FastAI & PyTorch.
 
 ---
 
